@@ -5,9 +5,6 @@ format: html
 execute: 
   echo: false
 ---
-
-Understanding the voter preference of different genders is essential for a candidate to design a campaign strategy. Using data from the National Election Studies survey of US citizens, we seek to understand the relationship between voter preference and sex in the 1992 Presidential election. However, since not everyone participates in the survey, the data might not be representative of the entire population.
-
 ```{r}
 #| message: false
 #| label: setup
@@ -16,6 +13,7 @@ library(tidyverse)
 library(primer.data)
 library(tidymodels)
 library(gtsummary)
+library(marginaleffects)
 ```
 
 ```{r}
@@ -30,15 +28,6 @@ nes_92 <- nes |>
   )))
 ```
 
-$$ Y \sim \text{Mutinomial}(\rho_{bush}, \rho_{clinton}, \rho_{perot}) $$
-
-$$ \begin{aligned}
-\rho_{clinton} &=& \frac{e^{\beta_{0, clinton} + \beta_{1, clinton} male}}{1 + e^{\beta_{0, clinton} + \beta_{1, clinton} male}}\\
-\rho_{perot} &=& \frac{e^{\beta_{0, perot} + \beta_{1, perot} male}}{1 + e^{\beta_{0, perot} + \beta_{1, perot} male}}\\
-\rho_{bush}  &=& 1 - \rho_{clinton} - \rho_{perot}
-\end{aligned} $$
-
-
 ```{r}
 #| label: model
 #| cache: true
@@ -46,3 +35,39 @@ $$ \begin{aligned}
 fit_nes <- multinom_reg(engine = "nnet") |>
   fit(pres_vote ~ sex, data = nes_92)
 ```
+
+```{r}
+plot_predictions(fit_nes,
+                 by = "sex", 
+                 type = "prob",
+                 draw = FALSE)
+```
+
+```{r}
+#| label: plot
+
+plot_predictions(fit_nes, 
+                  by = "sex", 
+                  type = "prob", 
+                  draw = FALSE) |> 
+    ggplot(aes(x = group, y = estimate, color = sex)) +
+      geom_point(size = 3, position = position_dodge(width = 0.5)) +
+      geom_errorbar(aes(ymin = conf.low, 
+                        ymax = conf.high), 
+                    width = 0.2, 
+                    position = position_dodge(width = 0.5)) +
+      labs(title = "Voting Preferences by Candidate and Sex",
+           x = NULL,
+           y = "Estimated Proportion",
+           color = "Sex") +
+      theme_minimal() 
+```
+
+Understanding the voter preference of different genders is essential for a candidate to design a campaign strategy. Using data from the National Election Studies survey of US citizens, we seek to understand the relationship between voter preference and sex in the 1992 Presidential election. However, since not everyone participates in the survey, the data might not be representative of the entire population.
+
+
+```{r}
+#| label: table
+tbl_regression(fit_nes)
+```
+
